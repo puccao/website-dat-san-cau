@@ -4,6 +4,9 @@ export interface User {
   email: string;
   phone?: string;
   role: "user" | "admin";
+  bookingCount?: number;
+  totalSpent?: number;
+  createdAt?: string;
 }
 
 export interface Court {
@@ -13,15 +16,22 @@ export interface Court {
   status: "active" | "maintenance";
   regularPrice: number;
   peakPrice: number;
+  position?: string; // Vị trí sân trong khuôn viên (ví dụ: Khu A - Sân 1, Sân trung tâm 1, v.v.)
 }
 
 export interface Location {
   id: string;
   name: string;
   address: string;
+  district?: string;
+  city?: string;
   phone: string;
   openTime: string;
   closeTime: string;
+  mapUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  directions?: string;
   courts: Court[];
 }
 
@@ -49,9 +59,23 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface DailyRevenueItem {
+  date: string;
+  revenue: number;
+  bookingsCount: number;
+}
+
+export interface TimeSlotItem {
+  slot: string;
+  label: string;
+  count: number;
+}
+
 export interface AdminStats {
   totalRevenue: number;
   todayRevenue: number;
+  monthRevenue?: number;
+  avgBookingValue?: number;
   totalBookings: number;
   todayBookingsCount: number;
   pendingCount: number;
@@ -61,6 +85,9 @@ export interface AdminStats {
   utilizationRate: number;
   totalUsers: number;
   totalLocations: number;
+  totalCourts?: number;
+  dailyRevenue?: DailyRevenueItem[];
+  timeSlots?: TimeSlotItem[];
 }
 
 export interface TestAccount {
@@ -70,3 +97,4 @@ export interface TestAccount {
   password: string;
   description: string;
 }
+

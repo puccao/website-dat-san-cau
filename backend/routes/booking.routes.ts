@@ -4,6 +4,7 @@ import {
   getMyBookings,
   getBooking,
   createBooking,
+  updateBooking,
   updateBookingStatus,
   deleteBooking,
 } from "../controllers/booking.controller.js";
@@ -27,6 +28,9 @@ router.get("/:id", getBooking);
 // Create a new booking
 router.post("/", optionalToken, createBooking);
 
+// Update full booking details (Admin or authorized owner)
+router.put("/:id", optionalToken, updateBooking);
+
 // Update status (Admin confirms/cancels, or User cancels their own)
 router.patch("/:id/status", optionalToken, updateBookingStatus);
 
@@ -34,3 +38,4 @@ router.patch("/:id/status", optionalToken, updateBookingStatus);
 router.delete("/:id", verifyToken, requireAdmin, deleteBooking);
 
 export default router;
+

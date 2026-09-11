@@ -345,6 +345,185 @@ export async function createBooking(req: AuthRequest, res: Response) {
 }
 
 // =====================================================
+// UPDATE FULL BOOKING (Admin edit or reschedule)
+// =====================================================
+export async function updateBooking(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const {
+      customerName,
+      customerPhone,
+      courtId,
+      courtName,
+      locationId,
+      location,
+      date,
+      startTime,
+      endTime,
+      paymentMethod,
+      status,
+      note,
+    } = req.body;
+
+    if (!isDbConnected()) {
+      const idx = memoryBookings.findIndex((b) => b._id === id || b.bookingCode === id);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy đơn đặt sân" });
+      }
+
+      const booking = memoryBookings[idx];
+
+      const targetCourtId = courtId || booking.courtId;
+      const targetLocId = locationId || booking.locationId;
+      const targetDate = date || booking.date;
+      const targetStart = startTime || booking.startTime;
+      const targetEnd = endTime || booking.endTime;
+
+      // Check conflict if date/court/time changed
+      if (
+        (targetCourtId !== booking.courtId ||
+          targetDate !== booking.date ||
+          targetStart !== booking.startTime ||
+          targetEnd !== booking.endTime) &&
+        ["pending", "confirmed"].includes(status || booking.status)
+      ) {
+        const conflict = memoryBookings.find(
+          (b) =>
+            b._id !== booking._id &&
+            b.courtId === targetCourtId &&
+            b.date === targetDate &&
+            ["pending", "confirmed"].includes(b.status) &&
+            b.startTime < targetEnd &&
+            b.endTime > targetStart
+        );
+        if (conflict) {
+          return res.status(409).json({
+            success: false,
+            message: `Khung giờ ${targetStart} - ${targetEnd} đã bị trùng với đơn ${conflict.bookingCode}`,
+          });
+        }
+      }
+
+      // Re-calculate price if time or court changed
+      let regPrice = 80000;
+      let peakPrice = 120000;
+      const loc = memoryLocations.find((l) => l._id === targetLocId);
+      if (loc) {
+        const c = loc.courts.find((item) => item.id === targetCourtId);
+        if (c) {
+          regPrice = c.regularPrice;
+          peakPrice = c.peakPrice;
+        }
+      }
+
+      const pricing = calculatePriceAndHours(targetStart, targetEnd, regPrice, peakPrice);
+
+      if (customerName) booking.customerName = customerName.trim();
+      if (customerPhone) booking.customerPhone = customerPhone.trim();
+      if (courtId) booking.courtId = courtId;
+      if (courtName) booking.courtName = courtName;
+      if (locationId) booking.locationId = locationId;
+      if (location) booking.location = location;
+      booking.date = targetDate;
+      booking.startTime = targetStart;
+      booking.endTime = targetEnd;
+      booking.durationHours = pricing.durationHours;
+      booking.regularHours = pricing.regularHours;
+      booking.peakHours = pricing.peakHours;
+      booking.totalPrice = pricing.totalPrice;
+      if (paymentMethod) booking.paymentMethod = paymentMethod;
+      if (status) booking.status = status;
+      if (note !== undefined) booking.note = note;
+      booking.updatedAt = new Date();
+
+      return res.json({
+        success: true,
+        message: "Cập nhật đơn đặt sân thành công",
+        booking,
+      });
+    }
+
+    const booking = await Booking.findOne({
+      $or: [{ _id: id }, { bookingCode: id }],
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn đặt sân" });
+    }
+
+    const targetCourtId = courtId || booking.courtId;
+    const targetLocId = locationId || booking.locationId;
+    const targetDate = date || booking.date;
+    const targetStart = startTime || booking.startTime;
+    const targetEnd = endTime || booking.endTime;
+
+    if (
+      (targetCourtId !== booking.courtId ||
+        targetDate !== booking.date ||
+        targetStart !== booking.startTime ||
+        targetEnd !== booking.endTime) &&
+      ["pending", "confirmed"].includes(status || booking.status)
+    ) {
+      const conflict = await Booking.findOne({
+        _id: { $ne: booking._id },
+        courtId: targetCourtId,
+        date: targetDate,
+        status: { $in: ["pending", "confirmed"] },
+        startTime: { $lt: targetEnd },
+        endTime: { $gt: targetStart },
+      });
+      if (conflict) {
+        return res.status(409).json({
+          success: false,
+          message: `Khung giờ ${targetStart} - ${targetEnd} đã bị trùng với đơn ${conflict.bookingCode}`,
+        });
+      }
+    }
+
+    let regPrice = 80000;
+    let peakPrice = 120000;
+    const loc = await Location.findById(targetLocId);
+    if (loc) {
+      const c = loc.courts.find((item: any) => item.id === targetCourtId);
+      if (c) {
+        regPrice = c.regularPrice;
+        peakPrice = c.peakPrice;
+      }
+    }
+
+    const pricing = calculatePriceAndHours(targetStart, targetEnd, regPrice, peakPrice);
+
+    if (customerName) booking.customerName = customerName.trim();
+    if (customerPhone) booking.customerPhone = customerPhone.trim();
+    if (courtId) booking.courtId = courtId;
+    if (courtName) booking.courtName = courtName;
+    if (locationId) booking.locationId = locationId;
+    if (location) booking.location = location;
+    booking.date = targetDate;
+    booking.startTime = targetStart;
+    booking.endTime = targetEnd;
+    booking.durationHours = pricing.durationHours;
+    booking.regularHours = pricing.regularHours;
+    booking.peakHours = pricing.peakHours;
+    booking.totalPrice = pricing.totalPrice;
+    if (paymentMethod) booking.paymentMethod = paymentMethod;
+    if (status) booking.status = status;
+    if (note !== undefined) booking.note = note;
+
+    await booking.save();
+
+    return res.json({
+      success: true,
+      message: "Cập nhật đơn đặt sân thành công",
+      booking,
+    });
+  } catch (error) {
+    console.error("Update booking error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi cập nhật đơn đặt sân" });
+  }
+}
+
+// =====================================================
 // UPDATE BOOKING STATUS (Admin or User cancel)
 // =====================================================
 export async function updateBookingStatus(req: AuthRequest, res: Response) {

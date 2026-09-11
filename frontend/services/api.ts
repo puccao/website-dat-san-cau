@@ -68,6 +68,27 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/locations/${id}`, {
         method: "DELETE",
       }),
+
+    addCourt: (locationId: string, courtData: { name: string; type?: string; regularPrice?: number; peakPrice?: number; position?: string }) =>
+      request<{ success: boolean; message: string; court: any }>(`/api/locations/${locationId}/courts`, {
+        method: "POST",
+        body: JSON.stringify(courtData),
+      }),
+
+    updateCourt: (
+      locationId: string,
+      courtId: string,
+      courtData: { name?: string; type?: string; status?: "active" | "maintenance"; regularPrice?: number; peakPrice?: number; position?: string }
+    ) =>
+      request<{ success: boolean; message: string; court: any }>(`/api/locations/${locationId}/courts/${courtId}`, {
+        method: "PATCH",
+        body: JSON.stringify(courtData),
+      }),
+
+    deleteCourt: (locationId: string, courtId: string) =>
+      request<{ success: boolean; message: string }>(`/api/locations/${locationId}/courts/${courtId}`, {
+        method: "DELETE",
+      }),
   },
 
   bookings: {
@@ -105,9 +126,16 @@ export const api = {
       paymentMethod: "transfer" | "onsite";
       note?: string;
       userId?: string;
+      status?: "pending" | "confirmed" | "completed" | "cancelled";
     }) =>
       request<{ success: boolean; booking: Booking; message: string }>("/api/bookings", {
         method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    update: (id: string, data: Partial<Booking>) =>
+      request<{ success: boolean; booking: Booking; message: string }>(`/api/bookings/${id}`, {
+        method: "PUT",
         body: JSON.stringify(data),
       }),
 
@@ -130,6 +158,23 @@ export const api = {
       request<{ success: boolean; users: (User & { bookingCount: number; totalSpent: number; createdAt: string })[] }>(
         "/api/admin/users"
       ),
+
+    createUser: (data: { name: string; email: string; password: string; phone?: string; role?: "user" | "admin" }) =>
+      request<{ success: boolean; message: string; user: any }>("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    updateUser: (id: string, data: { name?: string; phone?: string; role?: "user" | "admin"; password?: string }) =>
+      request<{ success: boolean; message: string; user: any }>(`/api/admin/users/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    deleteUser: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/users/${id}`, {
+        method: "DELETE",
+      }),
 
     toggleCourtStatus: (data: { locationId: string; courtId: string; status?: "active" | "maintenance"; regularPrice?: number; peakPrice?: number }) =>
       request<{ success: boolean; message: string; court: any }>("/api/admin/court-status", {

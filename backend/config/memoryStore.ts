@@ -9,9 +9,15 @@ export interface MemoryLocation {
   _id: string;
   name: string;
   address: string;
+  district?: string;
+  city?: string;
   phone: string;
   openTime: string;
   closeTime: string;
+  mapUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  directions?: string;
   courts: {
     id: string;
     name: string;
@@ -19,6 +25,7 @@ export interface MemoryLocation {
     status: "active" | "maintenance";
     regularPrice: number;
     peakPrice: number;
+    position?: string;
   }[];
   createdAt: Date;
   updatedAt: Date;
@@ -68,15 +75,21 @@ export const memoryLocations: MemoryLocation[] = [
   {
     _id: "665000000000000000000001",
     name: "Sân Cầu Lông Cầu Giấy",
-    address: "Số 35 Trần Quý Kiên, Cầu Giấy, Hà Nội",
+    address: "Số 35 Trần Quý Kiên, Dịch Vọng, Cầu Giấy, Hà Nội",
+    district: "Cầu Giấy",
+    city: "Hà Nội",
     phone: "0912 345 678",
     openTime: "06:00",
     closeTime: "22:00",
+    mapUrl: "https://maps.google.com/?q=21.033785,105.792518",
+    latitude: 21.033785,
+    longitude: 105.792518,
+    directions: "Cách ngã tư Cầu Giấy - Trần Đăng Ninh 200m, bãi gửi xe máy & ô tô rộng rãi miễn phí tại cổng 2.",
     courts: [
-      { id: "court_1", name: "Sân 1 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_2", name: "Sân 2 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_3", name: "Sân 3 (Thảm Yonex VIP)", type: "VIP", status: "active", regularPrice: 90000, peakPrice: 130000 },
-      { id: "court_4", name: "Sân 4 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
+      { id: "court_1", name: "Sân 1 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Tầng 1 (Sân trung tâm)" },
+      { id: "court_2", name: "Sân 2 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Tầng 1 (Cạnh cửa ra vào)" },
+      { id: "court_3", name: "Sân 3 (Thảm Yonex VIP)", type: "VIP", status: "active", regularPrice: 90000, peakPrice: 130000, position: "Khu VIP - Tầng 2 (Có điều hòa & quạt hút)" },
+      { id: "court_4", name: "Sân 4 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu B - Tầng 1 (Sân góc yên tĩnh)" },
     ],
     createdAt: new Date("2025-01-01T08:00:00.000Z"),
     updatedAt: new Date("2025-01-01T08:00:00.000Z"),
@@ -84,15 +97,21 @@ export const memoryLocations: MemoryLocation[] = [
   {
     _id: "665000000000000000000002",
     name: "Sân Cầu Lông Thủ Đức",
-    address: "Số 18 Võ Văn Ngân, TP. Thủ Đức, TP. Hồ Chí Minh",
+    address: "Số 18 Võ Văn Ngân, Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
+    district: "TP. Thủ Đức",
+    city: "TP. Hồ Chí Minh",
     phone: "0938 765 432",
     openTime: "06:00",
     closeTime: "22:00",
+    mapUrl: "https://maps.google.com/?q=10.851215,106.771965",
+    latitude: 10.851215,
+    longitude: 106.771965,
+    directions: "Đối diện Đại học Sư Phạm Kỹ Thuật, đi thẳng ngõ 18 vào 50m, nhà thi đấu mái vòm xanh.",
     courts: [
-      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy A - Sân số 1 (Gần khán đài)" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy A - Sân số 2" },
+      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy B - Sân số 3 (Cạnh quầy nước giải khát)" },
+      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy B - Sân số 4" },
     ],
     createdAt: new Date("2025-01-02T08:00:00.000Z"),
     updatedAt: new Date("2025-01-02T08:00:00.000Z"),
@@ -100,15 +119,21 @@ export const memoryLocations: MemoryLocation[] = [
   {
     _id: "665000000000000000000003",
     name: "Sân Cầu Lông Tân Bình",
-    address: "Số 120 Hoàng Hoa Thám, Tân Bình, TP. Hồ Chí Minh",
+    address: "Số 120 Hoàng Hoa Thám, Phường 12, Tân Bình, TP. Hồ Chí Minh",
+    district: "Tân Bình",
+    city: "TP. Hồ Chí Minh",
     phone: "0909 888 999",
     openTime: "06:00",
     closeTime: "22:00",
+    mapUrl: "https://maps.google.com/?q=10.801648,106.649982",
+    latitude: 10.801648,
+    longitude: 106.649982,
+    directions: "Gần ngã tư Hoàng Hoa Thám - Trường Chinh, khu phức hợp thể thao Quân khu, bãi xe ô tô rộng.",
     courts: [
-      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
-      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000 },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu trung tâm 1 (Thảm Yonex xanh lá)" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu trung tâm 2" },
+      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu khán đài VIP (Có ghế đệm & bảng điểm LED)" },
+      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu tập luyện cánh phải" },
     ],
     createdAt: new Date("2025-01-03T08:00:00.000Z"),
     updatedAt: new Date("2025-01-03T08:00:00.000Z"),

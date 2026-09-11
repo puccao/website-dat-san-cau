@@ -1,0 +1,6 @@
+{
+  "name": "Badminton Court Booking API",
+  "description": "Backend API for badminton court booking system with authentication, location management, and booking scheduling",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

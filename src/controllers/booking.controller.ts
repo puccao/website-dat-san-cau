@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
 import { Booking } from "../models/Booking.js";
+import {
+  isDbConnected,
+  memoryBookings,
+  generateId,
+} from "../config/memoryStore.js";
 
 // =====================================================
 // GET ALL BOOKINGS
@@ -10,6 +15,15 @@ export async function getBookings(
   res: Response
 ) {
   try {
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        bookings: [...memoryBookings].sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        ),
+      });
+    }
+
     const bookings = await Booking.find()
       .sort({ createdAt: -1 });
 
@@ -23,10 +37,9 @@ export async function getBookings(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Không thể lấy danh sách booking",
+    return res.json({
+      success: true,
+      bookings: memoryBookings,
     });
   }
 }
@@ -40,6 +53,22 @@ export async function getBooking(
   res: Response
 ) {
   try {
+    if (!isDbConnected()) {
+      const b = memoryBookings.find(
+        (item) => item._id === req.params.id
+      );
+      if (!b) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy booking",
+        });
+      }
+      return res.json({
+        success: true,
+        booking: b,
+      });
+    }
+
     const booking =
       await Booking.findById(
         req.params.id
@@ -62,6 +91,16 @@ export async function getBooking(
       "Get booking error:",
       error
     );
+
+    const b = memoryBookings.find(
+      (item) => item._id === req.params.id
+    );
+    if (b) {
+      return res.json({
+        success: true,
+        booking: b,
+      });
+    }
 
     return res.status(500).json({
       success: false,
@@ -135,6 +174,49 @@ export async function createBooking(
     // =================================================
     // CHECK TIME CONFLICT
     // =================================================
+
+    if (!isDbConnected()) {
+      const conflict = memoryBookings.find(
+        (b) =>
+          b.courtId === courtId &&
+          b.date === date &&
+          ["pending", "confirmed"].includes(b.status) &&
+          b.startTime < endTime &&
+          b.endTime > startTime
+      );
+
+      if (conflict) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Khung giờ này đã được đặt hoặc đang được giữ.",
+        });
+      }
+
+      const newBooking = {
+        _id: generateId(),
+        userId,
+        courtId,
+        courtName,
+        locationId,
+        location,
+        date,
+        startTime,
+        endTime,
+        totalPrice,
+        paymentMethod,
+        status: "pending" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      memoryBookings.unshift(newBooking);
+
+      return res.status(201).json({
+        success: true,
+        message: "Đặt sân thành công",
+        booking: newBooking,
+      });
+    }
 
     const conflict =
       await Booking.findOne({
@@ -241,6 +323,26 @@ export async function updateBookingStatus(
       });
     }
 
+    if (!isDbConnected()) {
+      const idx = memoryBookings.findIndex(
+        (b) => b._id === req.params.id
+      );
+      if (idx === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy booking",
+        });
+      }
+      memoryBookings[idx].status = status;
+      memoryBookings[idx].updatedAt = new Date();
+
+      return res.json({
+        success: true,
+        message: "Cập nhật trạng thái thành công",
+        booking: memoryBookings[idx],
+      });
+    }
+
     const booking =
       await Booking.findByIdAndUpdate(
         req.params.id,
@@ -290,6 +392,23 @@ export async function deleteBooking(
   res: Response
 ) {
   try {
+    if (!isDbConnected()) {
+      const idx = memoryBookings.findIndex(
+        (b) => b._id === req.params.id
+      );
+      if (idx === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy booking",
+        });
+      }
+      memoryBookings.splice(idx, 1);
+      return res.json({
+        success: true,
+        message: "Xóa booking thành công",
+      });
+    }
+
     const booking =
       await Booking.findByIdAndDelete(
         req.params.id

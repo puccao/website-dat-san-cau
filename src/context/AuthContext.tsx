@@ -34,8 +34,7 @@ const AuthContext =
   createContext<AuthContextType | null>(null);
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5000";
+  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) || "";
 
 export function AuthProvider({
   children,

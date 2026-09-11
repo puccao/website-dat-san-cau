@@ -7,8 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "outDir": "dist",
-    "rootDir": "src"
+    "outDir": "dist"
   },
-  "include": ["src/**/*"]
+  "include": ["backend/**/*", "frontend/**/*", "vite.config.ts"]
 }

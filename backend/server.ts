@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -9,6 +8,7 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import locationRoutes from "./routes/location.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +16,6 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
-
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(
@@ -32,11 +31,13 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
-    message: "API healthy",
+    message: "Badminton Booking API is healthy",
+    database: "mongodb (local: mongodb://127.0.0.1:27017/badminton_booking)",
     timestamp: new Date().toISOString(),
   });
 });
@@ -45,7 +46,8 @@ app.get("/api/info", (_req, res) => {
   res.json({
     success: true,
     name: "Website Đặt Sân Cầu Lông API",
-    version: "1.0.0",
+    version: "2.0.0",
+    roles: ["user", "admin"],
   });
 });
 
@@ -57,11 +59,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     err?.message?.includes("buffering timed out") ||
     err?.message?.includes("before connection is established")
   ) {
-    console.warn("[AI Studio] Database offline — returning mock empty response");
+    console.warn("[Database Offline] Falling back to memory response");
     if (req.method === "GET") {
       return res.json(req.path.endsWith("s") || req.path.endsWith("s/") ? [] : {});
     }
-    return res.status(503).json({ error: "Service temporarily unavailable (database offline)" });
+    return res.status(503).json({ error: "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng" });
   }
   next(err);
 });
@@ -84,7 +86,7 @@ async function startServer() {
         appType: "spa",
       });
       app.use(vite.middlewares);
-      console.log("⚡ Vite dev middleware initialized for Badminton UI");
+      console.log("⚡ Vite dev middleware initialized for Frontend");
     } catch (e) {
       console.error("⚠️ Vite middleware error:", e);
     }
@@ -92,7 +94,7 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(
-      `🚀 Badminton Booking Platform running at http://0.0.0.0:${PORT}`
+      `🏸 Badminton Booking Platform running at http://0.0.0.0:${PORT}`
     );
   });
 }

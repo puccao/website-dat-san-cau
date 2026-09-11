@@ -1,6 +1,6 @@
 {
   "name": "Badminton Court Booking API",
-  "description": "Backend API for badminton court booking system with authentication, location management, and booking scheduling",
+  "description": "Hệ thống đặt sân cầu lông chuyên nghiệp với phân tách rõ rệt 2 thư mục /backend và /frontend, cơ sở dữ liệu MongoDB, phân quyền Quản trị viên (Admin) và Người dùng, hệ thống trang con cho đặt sân, xem vé và quản lý",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -9,6 +9,12 @@ export interface User {
   createdAt?: string;
 }
 
+export interface CourtZone {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface Court {
   id: string;
   name: string;
@@ -16,7 +22,8 @@ export interface Court {
   status: "active" | "maintenance";
   regularPrice: number;
   peakPrice: number;
-  position?: string; // Vị trí sân trong khuôn viên (ví dụ: Khu A - Sân 1, Sân trung tâm 1, v.v.)
+  zone?: string; // Tên khu vực (ví dụ: Khu A, Khu B, Khu VIP)
+  position?: string; // Vị trí sân trong khuôn viên (ví dụ: Sân 1, Sân số 2, v.v.)
 }
 
 export interface Location {
@@ -32,6 +39,7 @@ export interface Location {
   latitude?: number;
   longitude?: number;
   directions?: string;
+  zones?: CourtZone[];
   courts: Court[];
 }
 

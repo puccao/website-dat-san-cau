@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../../services/api.js";
-import { Booking, Location } from "../../types/index.js";
+import { Booking, Location, Court } from "../../types/index.js";
 import {
   CalendarCheck,
   Search,
-  Filter,
   RefreshCw,
-  CheckCircle,
-  XCircle,
   Clock,
   Trash2,
   Phone,
@@ -18,11 +15,11 @@ import {
   Plus,
   X,
   MapPin,
-  DollarSign,
-  QrCode,
-  FileText,
-  User,
+  Building,
   CheckCircle2,
+  Tag,
+  DollarSign,
+  Check,
 } from "lucide-react";
 
 export const AdminBookingsPage: React.FC = () => {
@@ -43,6 +40,7 @@ export const AdminBookingsPage: React.FC = () => {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editFormData, setEditFormData] = useState({
     locationId: "",
+    zoneName: "",
     courtId: "",
     date: "",
     startTime: "17:00",
@@ -56,10 +54,11 @@ export const AdminBookingsPage: React.FC = () => {
   const [editError, setEditError] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
-  // Create Direct Booking Modal State
+  // Create Booking Modal State
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
   const [createFormData, setCreateFormData] = useState({
     locationId: "",
+    zoneName: "",
     courtId: "",
     date: new Date().toISOString().split("T")[0],
     startTime: "17:00",
@@ -82,11 +81,20 @@ export const AdminBookingsPage: React.FC = () => {
         }
         if (locsRes.success) {
           setLocations(locsRes.locations);
-          if (locsRes.locations.length > 0 && !createFormData.locationId) {
+
+          // Find Sân Cầu Lông Cầu Giấy
+          const cauGiayLoc = locsRes.locations.find((l) =>
+            l.name.toLowerCase().includes("cầu giấy")
+          ) || locsRes.locations[0];
+
+          if (cauGiayLoc && !createFormData.locationId) {
+            const firstZone = cauGiayLoc.zones?.[0]?.name || cauGiayLoc.courts?.[0]?.zone || "Khu A";
+            const firstCourt = cauGiayLoc.courts?.[0]?.id || "";
             setCreateFormData((prev) => ({
               ...prev,
-              locationId: locsRes.locations[0].id,
-              courtId: locsRes.locations[0].courts?.[0]?.id || "",
+              locationId: cauGiayLoc.id,
+              zoneName: firstZone,
+              courtId: firstCourt,
             }));
           }
         }
@@ -98,6 +106,43 @@ export const AdminBookingsPage: React.FC = () => {
   useEffect(() => {
     fetchBookingsAndLocations();
   }, []);
+
+  // Quick reference to Sân Cầu Lông Cầu Giấy
+  const cauGiayLocation = useMemo(() => {
+    return locations.find((l) => l.name.toLowerCase().includes("cầu giấy")) || null;
+  }, [locations]);
+
+  // Handle Quick Create for Sân Cầu Lông Cầu Giấy
+  const openCreateForCauGiay = () => {
+    if (!cauGiayLocation) {
+      setIsCreateOpen(true);
+      return;
+    }
+    const defaultZone =
+      cauGiayLocation.zones?.[0]?.name ||
+      cauGiayLocation.courts?.[0]?.zone ||
+      "Khu A (Tầng 1)";
+    const courtsInZone = cauGiayLocation.courts.filter(
+      (c) => (c.zone || "Khu A (Tầng 1)") === defaultZone
+    );
+    const defaultCourt = courtsInZone[0]?.id || cauGiayLocation.courts[0]?.id || "";
+
+    setCreateFormData({
+      locationId: cauGiayLocation.id,
+      zoneName: defaultZone,
+      courtId: defaultCourt,
+      date: new Date().toISOString().split("T")[0],
+      startTime: "17:00",
+      endTime: "19:00",
+      customerName: "",
+      customerPhone: "",
+      status: "confirmed",
+      paymentMethod: "onsite",
+      note: "Đặt trực tiếp tại Sân Cầu Lông Cầu Giấy",
+    });
+    setCreateError("");
+    setIsCreateOpen(true);
+  };
 
   const handleUpdateStatus = async (
     id: string,
@@ -141,8 +186,14 @@ export const AdminBookingsPage: React.FC = () => {
   const openEditModal = (b: Booking) => {
     setEditingBooking(b);
     setEditError("");
+
+    const loc = locations.find((l) => l.id === b.locationId) || locations[0];
+    const court = loc?.courts.find((c) => c.id === b.courtId);
+    const zoneName = court?.zone || loc?.zones?.[0]?.name || "Khu A (Tầng 1)";
+
     setEditFormData({
-      locationId: b.locationId || "",
+      locationId: b.locationId || loc?.id || "",
+      zoneName: zoneName,
       courtId: b.courtId,
       date: b.date,
       startTime: b.startTime,
@@ -184,7 +235,10 @@ export const AdminBookingsPage: React.FC = () => {
       });
 
       if (res.success) {
-        setMessage({ text: `Đã cập nhật đơn đặt sân ${editingBooking.bookingCode} thành công!`, type: "success" });
+        setMessage({
+          text: `Đã cập nhật đơn đặt sân ${editingBooking.bookingCode} thành công!`,
+          type: "success",
+        });
         setEditingBooking(null);
         fetchBookingsAndLocations();
       } else {
@@ -227,7 +281,10 @@ export const AdminBookingsPage: React.FC = () => {
       });
 
       if (res.success) {
-        setMessage({ text: `Đã tạo đơn đặt sân mới thành công! Mã: ${res.booking.bookingCode}`, type: "success" });
+        setMessage({
+          text: `Đã tạo đơn đặt sân mới thành công! Mã: ${res.booking.bookingCode}`,
+          type: "success",
+        });
         setIsCreateOpen(false);
         setCreateFormData((prev) => ({
           ...prev,
@@ -257,20 +314,97 @@ export const AdminBookingsPage: React.FC = () => {
       const matchName = b.customerName?.toLowerCase().includes(term);
       const matchPhone = b.customerPhone?.toLowerCase().includes(term);
       const matchCourt = b.courtName?.toLowerCase().includes(term);
-      if (!matchCode && !matchName && !matchPhone && !matchCourt) return false;
+      const matchLoc = b.location?.toLowerCase().includes(term);
+      if (!matchCode && !matchName && !matchPhone && !matchCourt && !matchLoc) return false;
     }
     return true;
   });
 
-  // Calculate metrics for current filter
+  // Calculate metrics
   const totalFilteredRevenue = filteredBookings
     .filter((b) => b.status === "confirmed" || b.status === "completed")
     .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
   const confirmedCount = bookings.filter((b) => b.status === "confirmed").length;
 
-  const currentEditLocation = locations.find((l) => l.id === editFormData.locationId);
-  const currentCreateLocation = locations.find((l) => l.id === createFormData.locationId);
+  // Sân Cầu Lông Cầu Giấy specific metrics
+  const cauGiayBookings = bookings.filter(
+    (b) =>
+      b.locationId === cauGiayLocation?.id ||
+      b.location?.toLowerCase().includes("cầu giấy")
+  );
+  const cauGiayRevenue = cauGiayBookings
+    .filter((b) => b.status === "confirmed" || b.status === "completed")
+    .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const cauGiayPending = cauGiayBookings.filter((b) => b.status === "pending").length;
+
+  // Active Location & Zones for Create Modal
+  const currentCreateLoc =
+    locations.find((l) => l.id === createFormData.locationId) || locations[0] || null;
+  const createLocZones = useMemo(() => {
+    if (!currentCreateLoc) return [];
+    if (currentCreateLoc.zones && currentCreateLoc.zones.length > 0) {
+      return currentCreateLoc.zones;
+    }
+    const names = Array.from(
+      new Set(currentCreateLoc.courts.map((c) => c.zone || "Khu A (Tầng 1)"))
+    );
+    return names.map((name, idx) => ({ id: `cz_${idx}`, name }));
+  }, [currentCreateLoc]);
+
+  const courtsInCreateZone = useMemo(() => {
+    if (!currentCreateLoc) return [];
+    const targetZone = createFormData.zoneName || createLocZones[0]?.name;
+    const matched = currentCreateLoc.courts.filter(
+      (c) => (c.zone || createLocZones[0]?.name) === targetZone
+    );
+    return matched.length > 0 ? matched : currentCreateLoc.courts;
+  }, [currentCreateLoc, createFormData.zoneName, createLocZones]);
+
+  // Active Location & Zones for Edit Modal
+  const currentEditLoc =
+    locations.find((l) => l.id === editFormData.locationId) || locations[0] || null;
+  const editLocZones = useMemo(() => {
+    if (!currentEditLoc) return [];
+    if (currentEditLoc.zones && currentEditLoc.zones.length > 0) {
+      return currentEditLoc.zones;
+    }
+    const names = Array.from(
+      new Set(currentEditLoc.courts.map((c) => c.zone || "Khu A (Tầng 1)"))
+    );
+    return names.map((name, idx) => ({ id: `ez_${idx}`, name }));
+  }, [currentEditLoc]);
+
+  const courtsInEditZone = useMemo(() => {
+    if (!currentEditLoc) return [];
+    const targetZone = editFormData.zoneName || editLocZones[0]?.name;
+    const matched = currentEditLoc.courts.filter(
+      (c) => (c.zone || editLocZones[0]?.name) === targetZone
+    );
+    return matched.length > 0 ? matched : currentEditLoc.courts;
+  }, [currentEditLoc, editFormData.zoneName, editLocZones]);
+
+  // Live Price Calculation Helper for Create Modal
+  const previewCreatePrice = useMemo(() => {
+    const court = currentCreateLoc?.courts.find((c) => c.id === createFormData.courtId);
+    if (!court) return 0;
+    const [startH] = createFormData.startTime.split(":").map(Number);
+    const [endH] = createFormData.endTime.split(":").map(Number);
+    if (isNaN(startH) || isNaN(endH) || endH <= startH) return 0;
+
+    let total = 0;
+    for (let h = startH; h < endH; h++) {
+      if (h >= 16) {
+        total += court.peakPrice;
+      } else {
+        total += court.regularPrice;
+      }
+    }
+    return total;
+  }, [currentCreateLoc, createFormData.courtId, createFormData.startTime, createFormData.endTime]);
+
+  const isCauGiayFilterSelected =
+    cauGiayLocation && locationFilter === cauGiayLocation.id;
 
   return (
     <div className="space-y-6">
@@ -279,14 +413,24 @@ export const AdminBookingsPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-amber-400" />
-            <span>Quản Lý Toàn Bộ Đơn Đặt Sân</span>
+            <span>Quản Lý Đơn Đặt Sân (Admin Booking CRUD)</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            CRUD toàn diện: Thêm đơn tại quầy, sửa lịch & đổi sân, kiểm tra xung đột giờ và duyệt vé
+            Quản trị toàn diện đơn đặt: Tạo đơn tại quầy, duyệt vé, chọn Khu vực & Sân, chỉnh sửa lịch và hủy/xóa đơn.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {/* Nút Tạo Đơn Nhanh Cho Sân Cầu Lông Cầu Giấy */}
+          <button
+            onClick={openCreateForCauGiay}
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+            title="Tạo đơn đặt trực tiếp cho Sân Cầu Lông Cầu Giấy"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tạo Đơn Sân Cầu Giấy</span>
+          </button>
+
           <button
             onClick={() => setIsCreateOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/40"
@@ -300,12 +444,106 @@ export const AdminBookingsPage: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition flex items-center gap-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Làm mới</span>
+            <span className="hidden sm:inline">Làm mới</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Counters Bar */}
+      {/* Quick Location Filter Bar (Featuring Sân Cầu Lông Cầu Giấy) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-slate-400 font-semibold px-2 flex items-center gap-1">
+          <Building className="w-3.5 h-3.5 text-amber-400" />
+          <span>Lọc Cơ sở:</span>
+        </span>
+
+        <button
+          onClick={() => setLocationFilter("all")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+            locationFilter === "all"
+              ? "bg-slate-700 text-white"
+              : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+          }`}
+        >
+          Tất cả cơ sở ({bookings.length})
+        </button>
+
+        {locations.map((loc) => {
+          const isSelected = locationFilter === loc.id;
+          const isCauGiay = loc.name.toLowerCase().includes("cầu giấy");
+          const count = bookings.filter(
+            (b) => b.locationId === loc.id || b.location === loc.name
+          ).length;
+
+          return (
+            <button
+              key={loc.id}
+              onClick={() => setLocationFilter(loc.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                isSelected
+                  ? isCauGiay
+                    ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                    : "bg-emerald-600 text-white"
+                  : isCauGiay
+                  ? "bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+                  : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+              }`}
+            >
+              <MapPin className="w-3 h-3" />
+              <span>{loc.name}</span>
+              <span className="text-[10px] font-mono opacity-80 font-normal">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Sân Cầu Lông Cầu Giấy Special Banner & KPIs */}
+      {isCauGiayFilterSelected && cauGiayLocation && (
+        <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-black/20">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950">
+                Cơ sở Cầu Giấy
+              </span>
+              <span className="text-xs text-slate-300 font-mono">
+                {cauGiayLocation.openTime} – {cauGiayLocation.closeTime}
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-white mt-1">
+              Sân Cầu Lông Cầu Giấy — {cauGiayLocation.address}
+            </h3>
+            <p className="text-xs text-slate-400">
+              Hotline tiếp nhận: <strong className="text-amber-300">{cauGiayLocation.phone}</strong> • Số sân:{" "}
+              <strong className="text-white">{cauGiayLocation.courts?.length || 0} sân</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800 text-center">
+              <span className="text-[10px] text-slate-400 block">Đơn tại Cầu Giấy</span>
+              <span className="text-base font-black text-amber-400">{cauGiayBookings.length}</span>
+            </div>
+            <div className="bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800 text-center">
+              <span className="text-[10px] text-slate-400 block">Chờ duyệt</span>
+              <span className="text-base font-black text-amber-300">{cauGiayPending}</span>
+            </div>
+            <div className="bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800 text-center">
+              <span className="text-[10px] text-slate-400 block">Doanh thu Cầu Giấy</span>
+              <span className="text-base font-black text-emerald-400">
+                {cauGiayRevenue.toLocaleString()}đ
+              </span>
+            </div>
+            <button
+              onClick={openCreateForCauGiay}
+              className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center gap-1 shadow-md shadow-amber-500/20 shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Đặt sân này</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Global KPI Counters Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
           <span className="text-[11px] text-slate-400 block">Tổng đơn hệ thống</span>
@@ -316,7 +554,7 @@ export const AdminBookingsPage: React.FC = () => {
           <span className="text-xl font-black text-amber-400">{pendingCount} yêu cầu</span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
-          <span className="text-[11px] text-slate-400 block">Đã duyệt & Giữ chỗ</span>
+          <span className="text-[11px] text-slate-400 block">Đã duyệt (Confirmed)</span>
           <span className="text-xl font-black text-emerald-400">{confirmedCount} đơn</span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
@@ -327,7 +565,7 @@ export const AdminBookingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Message feedback */}
+      {/* Feedback message */}
       {message && (
         <div
           className={`p-3 rounded-xl text-xs flex items-center justify-between ${
@@ -351,14 +589,14 @@ export const AdminBookingsPage: React.FC = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Tìm mã đơn, tên khách, số điện thoại..."
+              placeholder="Tìm mã đơn, tên khách, số điện thoại, tên sân..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
             />
           </div>
 
-          {/* Location Filter */}
+          {/* Location Dropdown Filter */}
           <div>
             <select
               value={locationFilter}
@@ -394,7 +632,7 @@ export const AdminBookingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Status Pill Tabs */}
+        {/* Status Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
           <div className="flex flex-wrap items-center gap-2">
             {[
@@ -432,8 +670,17 @@ export const AdminBookingsPage: React.FC = () => {
             Đang tải dữ liệu đơn đặt sân...
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-xs">
-            Không tìm thấy đơn đặt sân nào phù hợp với bộ lọc
+          <div className="py-16 text-center text-slate-400 text-xs space-y-3">
+            <p>Không tìm thấy đơn đặt sân nào phù hợp với bộ lọc hiện tại</p>
+            {isCauGiayFilterSelected && (
+              <button
+                onClick={openCreateForCauGiay}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tạo đơn đầu tiên cho Sân Cầu Lông Cầu Giấy</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -443,16 +690,17 @@ export const AdminBookingsPage: React.FC = () => {
                   <th className="py-3 px-4">Mã đơn</th>
                   <th className="py-3 px-4">Khách hàng</th>
                   <th className="py-3 px-4">Sân & Cơ sở</th>
-                  <th className="py-3 px-4">Ngày & Khung giờ</th>
+                  <th className="py-3 px-4">Ngày & Giờ chơi</th>
                   <th className="py-3 px-4">Tổng tiền & HT</th>
                   <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4 text-right">Thao tác quản trị</th>
+                  <th className="py-3 px-4 text-right">Thao tác CRUD</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {filteredBookings.map((b) => {
                   const id = b._id || b.id || "";
                   const isUpdating = updatingId === id;
+                  const isCauGiay = b.location?.toLowerCase().includes("cầu giấy");
 
                   return (
                     <tr key={id} className="hover:bg-slate-800/30 transition">
@@ -472,8 +720,15 @@ export const AdminBookingsPage: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-200">{b.courtName}</div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                        <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                          <span>{b.courtName}</span>
+                          {isCauGiay && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                              Cầu Giấy
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate max-w-[170px]">
                           {b.location}
                         </div>
                       </td>
@@ -518,7 +773,7 @@ export const AdminBookingsPage: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Xem chi tiết */}
+                          {/* Xem chi tiết (Read) */}
                           <button
                             onClick={() => setViewingBooking(b)}
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
@@ -527,11 +782,11 @@ export const AdminBookingsPage: React.FC = () => {
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Chỉnh sửa đơn */}
+                          {/* Chỉnh sửa đơn (Update) */}
                           <button
                             onClick={() => openEditModal(b)}
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-                            title="Chỉnh sửa ngày giờ & sân"
+                            title="Chỉnh sửa ngày, giờ, sân"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -572,7 +827,7 @@ export const AdminBookingsPage: React.FC = () => {
                             </button>
                           )}
 
-                          {/* Xóa vĩnh viễn */}
+                          {/* Xóa vĩnh viễn (Delete) */}
                           <button
                             onClick={() => handleDeleteBooking(id, b.bookingCode)}
                             disabled={isUpdating}
@@ -592,7 +847,9 @@ export const AdminBookingsPage: React.FC = () => {
         )}
       </div>
 
-      {/* View Detail Modal */}
+      {/* ========================================== */}
+      {/* VIEW DETAIL MODAL */}
+      {/* ========================================== */}
       {viewingBooking && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -670,7 +927,7 @@ export const AdminBookingsPage: React.FC = () => {
                   <div>
                     <span className="font-bold text-white block">Mã VietQR Chuyển Khoản</span>
                     <span className="text-slate-400 text-[11px]">
-                      Kiểm tra sao kê với nội dung: <strong className="text-emerald-400">{viewingBooking.bookingCode}</strong>
+                      Nội dung chuyển khoản: <strong className="text-emerald-400">{viewingBooking.bookingCode}</strong>
                     </span>
                   </div>
                 </div>
@@ -689,7 +946,9 @@ export const AdminBookingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Booking Modal */}
+      {/* ========================================== */}
+      {/* EDIT BOOKING MODAL (With Zone & Court Hierarchy) */}
+      {/* ========================================== */}
       {editingBooking && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -699,7 +958,7 @@ export const AdminBookingsPage: React.FC = () => {
                   Chỉnh Sửa Đơn Đặt: {editingBooking.bookingCode}
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Điều chỉnh ngày, giờ hoặc đổi sân đấu với cơ chế kiểm tra trùng lịch
+                  Đổi ngày, khung giờ hoặc chuyển sang Khu vực & Sân khác
                 </p>
               </div>
               <button
@@ -725,7 +984,9 @@ export const AdminBookingsPage: React.FC = () => {
                     type="text"
                     required
                     value={editFormData.customerName}
-                    onChange={(e) => setEditFormData({ ...editFormData, customerName: e.target.value })}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, customerName: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -735,52 +996,89 @@ export const AdminBookingsPage: React.FC = () => {
                     type="tel"
                     required
                     value={editFormData.customerPhone}
-                    onChange={(e) => setEditFormData({ ...editFormData, customerPhone: e.target.value })}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, customerPhone: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
+              {/* Cơ sở */}
+              <div>
+                <label className="text-slate-300 font-semibold mb-1 block">Chọn Cơ sở</label>
+                <select
+                  value={editFormData.locationId}
+                  onChange={(e) => {
+                    const newLocId = e.target.value;
+                    const loc = locations.find((l) => l.id === newLocId);
+                    const zName = loc?.zones?.[0]?.name || loc?.courts?.[0]?.zone || "Khu A";
+                    const crtId = loc?.courts?.[0]?.id || "";
+                    setEditFormData({
+                      ...editFormData,
+                      locationId: newLocId,
+                      zoneName: zName,
+                      courtId: crtId,
+                    });
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                >
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Chọn Khu Vực & Sân */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Chọn Cơ sở</label>
+                  <label className="text-slate-300 font-semibold mb-1 block flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-amber-400" />
+                    <span>Khu Vực (Zone)</span>
+                  </label>
                   <select
-                    value={editFormData.locationId}
+                    value={editFormData.zoneName}
                     onChange={(e) => {
-                      const newLocId = e.target.value;
-                      const loc = locations.find((l) => l.id === newLocId);
+                      const newZone = e.target.value;
+                      const matchedCourts = currentEditLoc?.courts.filter(
+                        (c) => (c.zone || editLocZones[0]?.name) === newZone
+                      );
                       setEditFormData({
                         ...editFormData,
-                        locationId: newLocId,
-                        courtId: loc?.courts?.[0]?.id || "",
+                        zoneName: newZone,
+                        courtId: matchedCourts?.[0]?.id || currentEditLoc?.courts?.[0]?.id || "",
                       });
                     }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   >
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
+                    {editLocZones.map((z) => (
+                      <option key={z.id} value={z.name}>
+                        {z.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Chọn Sân</label>
+                  <label className="text-slate-300 font-semibold mb-1 block">Sân thi đấu</label>
                   <select
                     value={editFormData.courtId}
                     onChange={(e) => setEditFormData({ ...editFormData, courtId: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   >
-                    {currentEditLocation?.courts.map((court) => (
+                    {courtsInEditZone.map((court) => (
                       <option key={court.id} value={court.id}>
-                        {court.name} ({court.status === "maintenance" ? "Bảo trì" : "Hoạt động"})
+                        {court.name} ({court.type} -{" "}
+                        {court.status === "maintenance" ? "Bảo trì" : "Hoạt động"})
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
+              {/* Ngày & Giờ */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-slate-300 font-semibold mb-1 block">Ngày chơi *</label>
@@ -798,7 +1096,9 @@ export const AdminBookingsPage: React.FC = () => {
                     type="time"
                     required
                     value={editFormData.startTime}
-                    onChange={(e) => setEditFormData({ ...editFormData, startTime: e.target.value })}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, startTime: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -819,7 +1119,9 @@ export const AdminBookingsPage: React.FC = () => {
                   <label className="text-slate-300 font-semibold mb-1 block">Trạng thái đơn</label>
                   <select
                     value={editFormData.status}
-                    onChange={(e: any) => setEditFormData({ ...editFormData, status: e.target.value })}
+                    onChange={(e: any) =>
+                      setEditFormData({ ...editFormData, status: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="pending">Chờ duyệt (Pending)</option>
@@ -830,10 +1132,14 @@ export const AdminBookingsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Hình thức thanh toán</label>
+                  <label className="text-slate-300 font-semibold mb-1 block">
+                    Hình thức thanh toán
+                  </label>
                   <select
                     value={editFormData.paymentMethod}
-                    onChange={(e: any) => setEditFormData({ ...editFormData, paymentMethod: e.target.value })}
+                    onChange={(e: any) =>
+                      setEditFormData({ ...editFormData, paymentMethod: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="onsite">Tại quầy (Tiền mặt/POS)</option>
@@ -878,7 +1184,9 @@ export const AdminBookingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Create Direct Booking Modal */}
+      {/* ========================================== */}
+      {/* CREATE DIRECT BOOKING MODAL (With Zone & Court Hierarchy) */}
+      {/* ========================================== */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -886,10 +1194,14 @@ export const AdminBookingsPage: React.FC = () => {
               <div>
                 <h3 className="font-bold text-white text-base flex items-center gap-2">
                   <Plus className="w-4 h-4 text-emerald-400" />
-                  <span>Tạo Đơn Đặt Sân Trực Tiếp Tại Quầy</span>
+                  <span>
+                    {currentCreateLoc?.name.toLowerCase().includes("cầu giấy")
+                      ? "Tạo Đơn Sân Cầu Lông Cầu Giấy"
+                      : "Tạo Đơn Đặt Sân Trực Tiếp"}
+                  </span>
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Tạo vé nhanh cho khách vãng lai hoặc khách gọi hotline
+                  Phân cấp theo Khu vực (Zone) & Sân thi đấu với bảng tính giá tự động
                 </p>
               </div>
               <button
@@ -914,7 +1226,7 @@ export const AdminBookingsPage: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="Ví dụ: Anh Hoàng"
+                    placeholder="Ví dụ: Anh Tuấn"
                     value={createFormData.customerName}
                     onChange={(e) =>
                       setCreateFormData({ ...createFormData, customerName: e.target.value })
@@ -927,7 +1239,7 @@ export const AdminBookingsPage: React.FC = () => {
                   <input
                     type="tel"
                     required
-                    placeholder="0987654321"
+                    placeholder="0912345678"
                     value={createFormData.customerPhone}
                     onChange={(e) =>
                       setCreateFormData({ ...createFormData, customerPhone: e.target.value })
@@ -937,46 +1249,82 @@ export const AdminBookingsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Cơ sở */}
+              <div>
+                <label className="text-slate-300 font-semibold mb-1 block">Chọn Cơ sở</label>
+                <select
+                  value={createFormData.locationId}
+                  onChange={(e) => {
+                    const newLocId = e.target.value;
+                    const loc = locations.find((l) => l.id === newLocId);
+                    const zName = loc?.zones?.[0]?.name || loc?.courts?.[0]?.zone || "Khu A";
+                    const crtId = loc?.courts?.[0]?.id || "";
+                    setCreateFormData({
+                      ...createFormData,
+                      locationId: newLocId,
+                      zoneName: zName,
+                      courtId: crtId,
+                    });
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                >
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Phân cấp: Chọn Khu Vực -> Chọn Sân */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Chọn Cơ sở</label>
+                  <label className="text-slate-300 font-semibold mb-1 block flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Chọn Khu Vực *</span>
+                  </label>
                   <select
-                    value={createFormData.locationId}
+                    value={createFormData.zoneName}
                     onChange={(e) => {
-                      const newLocId = e.target.value;
-                      const loc = locations.find((l) => l.id === newLocId);
+                      const newZone = e.target.value;
+                      const matched = currentCreateLoc?.courts.filter(
+                        (c) => (c.zone || createLocZones[0]?.name) === newZone
+                      );
                       setCreateFormData({
                         ...createFormData,
-                        locationId: newLocId,
-                        courtId: loc?.courts?.[0]?.id || "",
+                        zoneName: newZone,
+                        courtId: matched?.[0]?.id || currentCreateLoc?.courts?.[0]?.id || "",
                       });
                     }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-medium focus:outline-none focus:border-amber-500"
                   >
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
+                    {createLocZones.map((z) => (
+                      <option key={z.id} value={z.name}>
+                        {z.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Chọn Sân</label>
+                  <label className="text-slate-300 font-semibold mb-1 block">Chọn Sân trong Khu Vực *</label>
                   <select
                     value={createFormData.courtId}
-                    onChange={(e) => setCreateFormData({ ...createFormData, courtId: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, courtId: e.target.value })
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-medium focus:outline-none focus:border-amber-500"
                   >
-                    {currentCreateLocation?.courts.map((court) => (
+                    {courtsInCreateZone.map((court) => (
                       <option key={court.id} value={court.id}>
-                        {court.name} ({court.status === "maintenance" ? "Bảo trì" : "Hoạt động"})
+                        {court.name} ({court.type} - {court.regularPrice.toLocaleString()}đ/h)
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
+              {/* Ngày & Giờ */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-slate-300 font-semibold mb-1 block">Ngày chơi *</label>
@@ -984,7 +1332,9 @@ export const AdminBookingsPage: React.FC = () => {
                     type="date"
                     required
                     value={createFormData.date}
-                    onChange={(e) => setCreateFormData({ ...createFormData, date: e.target.value })}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, date: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -994,7 +1344,9 @@ export const AdminBookingsPage: React.FC = () => {
                     type="time"
                     required
                     value={createFormData.startTime}
-                    onChange={(e) => setCreateFormData({ ...createFormData, startTime: e.target.value })}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, startTime: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -1004,15 +1356,31 @@ export const AdminBookingsPage: React.FC = () => {
                     type="time"
                     required
                     value={createFormData.endTime}
-                    onChange={(e) => setCreateFormData({ ...createFormData, endTime: e.target.value })}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, endTime: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
+              {/* Live Preview Giá */}
+              {previewCreatePrice > 0 && (
+                <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between text-xs">
+                  <span className="text-emerald-300 font-medium">
+                    Giá tiền tạm tính tự động theo khung giờ:
+                  </span>
+                  <span className="text-base font-black text-emerald-400 font-mono">
+                    {previewCreatePrice.toLocaleString()}đ
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Hình thức thanh toán</label>
+                  <label className="text-slate-300 font-semibold mb-1 block">
+                    Hình thức thanh toán
+                  </label>
                   <select
                     value={createFormData.paymentMethod}
                     onChange={(e: any) =>
@@ -1026,11 +1394,13 @@ export const AdminBookingsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold mb-1 block">Ghi chú</label>
+                  <label className="text-slate-300 font-semibold mb-1 block">Ghi chú đơn</label>
                   <input
                     type="text"
                     value={createFormData.note}
-                    onChange={(e) => setCreateFormData({ ...createFormData, note: e.target.value })}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, note: e.target.value })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -1047,7 +1417,7 @@ export const AdminBookingsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={creatingBooking}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/40"
                 >
                   {creatingBooking ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />

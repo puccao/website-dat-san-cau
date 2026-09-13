@@ -8,6 +8,9 @@ import {
   addCourt,
   updateCourt,
   deleteCourt,
+  addZone,
+  updateZone,
+  deleteZone,
 } from "../controllers/location.controller.js";
 import { verifyToken, requireAdmin } from "../middleware/auth.middleware.js";
 
@@ -21,6 +24,11 @@ router.get("/:id", getLocation);
 router.post("/", verifyToken, requireAdmin, createLocation);
 router.put("/:id", verifyToken, requireAdmin, updateLocation);
 router.delete("/:id", verifyToken, requireAdmin, deleteLocation);
+
+// Admin: Manage zones (Khu vực) inside location
+router.post("/:id/zones", verifyToken, requireAdmin, addZone);
+router.put("/:id/zones/:zoneId", verifyToken, requireAdmin, updateZone);
+router.delete("/:id/zones/:zoneId", verifyToken, requireAdmin, deleteZone);
 
 // Admin: Manage courts inside location
 router.post("/:id/courts", verifyToken, requireAdmin, addCourt);

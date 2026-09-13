@@ -7,6 +7,13 @@ import {
 } from "../config/memoryStore.js";
 
 function formatLocation(loc: any) {
+  const defaultZones = [
+    { id: "zone_a", name: "Khu A (Tầng 1)", description: "Mặt thảm Enlio tiêu chuẩn thi đấu, gần lễ tân" },
+    { id: "zone_b", name: "Khu B (Tầng 1)", description: "Không gian thoáng mát cạnh khán đài" },
+    { id: "zone_vip", name: "Khu VIP (Tầng 2)", description: "Thảm Yonex cao cấp có máy lạnh riêng biệt" },
+  ];
+  const zones = loc.zones && loc.zones.length > 0 ? loc.zones : defaultZones;
+
   return {
     id: (loc._id || loc.id).toString(),
     name: loc.name,
@@ -20,6 +27,11 @@ function formatLocation(loc: any) {
     latitude: loc.latitude || 0,
     longitude: loc.longitude || 0,
     directions: loc.directions || "",
+    zones: zones.map((z: any) => ({
+      id: z.id,
+      name: z.name,
+      description: z.description || "",
+    })),
     courts: (loc.courts || []).map((c: any) => ({
       id: c.id,
       name: c.name,
@@ -27,7 +39,8 @@ function formatLocation(loc: any) {
       status: c.status || "active",
       regularPrice: c.regularPrice,
       peakPrice: c.peakPrice,
-      position: c.position || "Khu trung tâm",
+      zone: c.zone || "Khu A (Tầng 1)",
+      position: c.position || "Sân tiêu chuẩn",
     })),
   };
 }
@@ -103,10 +116,16 @@ export async function createLocation(req: Request, res: Response) {
     }
 
     const defaultCourts = courts || [
-      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Sân 1" },
-      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Sân 2" },
-      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu B - Sân 3" },
-      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu B - Sân 4" },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A (Tầng 1)", position: "Khu A - Sân 1" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A (Tầng 1)", position: "Khu A - Sân 2" },
+      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu B (Tầng 1)", position: "Khu B - Sân 3" },
+      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu B (Tầng 1)", position: "Khu B - Sân 4" },
+    ];
+
+    const defaultZones = zones && zones.length > 0 ? zones : [
+      { id: "zone_a", name: "Khu A (Tầng 1)", description: "Mặt thảm Enlio tiêu chuẩn thi đấu, gần lễ tân" },
+      { id: "zone_b", name: "Khu B (Tầng 1)", description: "Không gian thoáng mát cạnh khán đài" },
+      { id: "zone_vip", name: "Khu VIP (Tầng 2)", description: "Thảm Yonex cao cấp có máy lạnh riêng biệt" },
     ];
 
     if (!isDbConnected()) {
@@ -123,6 +142,7 @@ export async function createLocation(req: Request, res: Response) {
         latitude: latitude !== undefined ? Number(latitude) : 0,
         longitude: longitude !== undefined ? Number(longitude) : 0,
         directions: directions ? directions.trim() : "",
+        zones: defaultZones,
         courts: defaultCourts,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -147,6 +167,7 @@ export async function createLocation(req: Request, res: Response) {
       latitude: latitude !== undefined ? Number(latitude) : 0,
       longitude: longitude !== undefined ? Number(longitude) : 0,
       directions: directions ? directions.trim() : "",
+      zones: defaultZones,
       courts: defaultCourts,
     });
 
@@ -176,6 +197,7 @@ export async function updateLocation(req: Request, res: Response) {
       latitude,
       longitude,
       directions,
+      zones,
       courts,
     } = req.body;
 
@@ -196,6 +218,7 @@ export async function updateLocation(req: Request, res: Response) {
       if (latitude !== undefined) memoryLocations[idx].latitude = Number(latitude);
       if (longitude !== undefined) memoryLocations[idx].longitude = Number(longitude);
       if (directions !== undefined) memoryLocations[idx].directions = directions.trim();
+      if (zones !== undefined) memoryLocations[idx].zones = zones;
       if (courts !== undefined) memoryLocations[idx].courts = courts;
       memoryLocations[idx].updatedAt = new Date();
 
@@ -221,6 +244,7 @@ export async function updateLocation(req: Request, res: Response) {
           ...(latitude !== undefined && { latitude: Number(latitude) }),
           ...(longitude !== undefined && { longitude: Number(longitude) }),
           ...(directions !== undefined && { directions: directions.trim() }),
+          ...(zones !== undefined && { zones }),
           ...(courts !== undefined && { courts }),
         },
       },
@@ -276,7 +300,8 @@ export async function addCourt(req: Request, res: Response) {
       type = "Standard",
       regularPrice = 80000,
       peakPrice = 120000,
-      position = "Khu trung tâm",
+      zone = "Khu A (Tầng 1)",
+      position = "Sân tiêu chuẩn",
     } = req.body;
 
     if (!name) {
@@ -291,7 +316,8 @@ export async function addCourt(req: Request, res: Response) {
       status: "active" as const,
       regularPrice: Number(regularPrice) || 80000,
       peakPrice: Number(peakPrice) || 120000,
-      position: (position || "Khu trung tâm").trim(),
+      zone: (zone || "Khu A (Tầng 1)").trim(),
+      position: (position || "Sân tiêu chuẩn").trim(),
     };
 
     if (!isDbConnected()) {
@@ -323,7 +349,7 @@ export async function addCourt(req: Request, res: Response) {
 export async function updateCourt(req: Request, res: Response) {
   try {
     const { id, courtId } = req.params;
-    const { name, type, status, regularPrice, peakPrice, position } = req.body;
+    const { name, type, status, regularPrice, peakPrice, zone, position } = req.body;
 
     if (!isDbConnected()) {
       const loc = memoryLocations.find((l) => l._id === id);
@@ -341,6 +367,7 @@ export async function updateCourt(req: Request, res: Response) {
       if (status) court.status = status;
       if (regularPrice !== undefined) court.regularPrice = Number(regularPrice);
       if (peakPrice !== undefined) court.peakPrice = Number(peakPrice);
+      if (zone !== undefined) court.zone = zone.trim();
       if (position !== undefined) court.position = position.trim();
       loc.updatedAt = new Date();
 
@@ -362,6 +389,7 @@ export async function updateCourt(req: Request, res: Response) {
     if (status) court.status = status;
     if (regularPrice !== undefined) court.regularPrice = Number(regularPrice);
     if (peakPrice !== undefined) court.peakPrice = Number(peakPrice);
+    if (zone !== undefined) court.zone = zone.trim();
     if (position !== undefined) court.position = position.trim();
 
     await loc.save();
@@ -405,6 +433,183 @@ export async function deleteCourt(req: Request, res: Response) {
   } catch (error) {
     console.error("Delete court error:", error);
     return res.status(500).json({ success: false, message: "Lỗi xóa sân" });
+  }
+}
+
+// =====================================================
+// ZONE MANAGEMENT (CRUD Khu Vực trong Cơ sở)
+// =====================================================
+export async function addZone(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tên khu vực" });
+    }
+
+    const zoneId = `zone_${Date.now().toString().slice(-6)}`;
+    const newZone = {
+      id: zoneId,
+      name: name.trim(),
+      description: description ? description.trim() : "",
+    };
+
+    if (!isDbConnected()) {
+      const loc = memoryLocations.find((l) => l._id === id);
+      if (!loc) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+      }
+      if (!loc.zones) loc.zones = [];
+      loc.zones.push(newZone);
+      loc.updatedAt = new Date();
+      return res.status(201).json({ success: true, message: "Thêm khu vực mới thành công", zone: newZone });
+    }
+
+    const loc = await Location.findById(id);
+    if (!loc) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+    }
+
+    if (!loc.zones) loc.zones = [];
+    loc.zones.push(newZone as any);
+    await loc.save();
+
+    return res.status(201).json({ success: true, message: "Thêm khu vực mới thành công", zone: newZone });
+  } catch (error) {
+    console.error("Add zone error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi thêm khu vực" });
+  }
+}
+
+export async function updateZone(req: Request, res: Response) {
+  try {
+    const { id, zoneId } = req.params;
+    const { name, description } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tên khu vực" });
+    }
+
+    if (!isDbConnected()) {
+      const loc = memoryLocations.find((l) => l._id === id);
+      if (!loc) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+      }
+
+      const zone = loc.zones?.find((z) => z.id === zoneId);
+      if (!zone) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy khu vực" });
+      }
+
+      const oldName = zone.name;
+      zone.name = name.trim();
+      if (description !== undefined) zone.description = description.trim();
+
+      // Update courts using old zone name
+      if (loc.courts) {
+        loc.courts.forEach((c) => {
+          if (c.zone === oldName) {
+            c.zone = zone.name;
+          }
+        });
+      }
+      loc.updatedAt = new Date();
+
+      return res.json({ success: true, message: "Cập nhật khu vực thành công", zone });
+    }
+
+    const loc = await Location.findById(id);
+    if (!loc) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+    }
+
+    const zone = loc.zones?.find((z: any) => z.id === zoneId);
+    if (!zone) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy khu vực" });
+    }
+
+    const oldName = zone.name;
+    zone.name = name.trim();
+    if (description !== undefined) zone.description = description.trim();
+
+    if (loc.courts) {
+      loc.courts.forEach((c: any) => {
+        if (c.zone === oldName) {
+          c.zone = zone.name;
+        }
+      });
+    }
+
+    await loc.save();
+
+    return res.json({ success: true, message: "Cập nhật khu vực thành công", zone });
+  } catch (error) {
+    console.error("Update zone error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi cập nhật khu vực" });
+  }
+}
+
+export async function deleteZone(req: Request, res: Response) {
+  try {
+    const { id, zoneId } = req.params;
+
+    if (!isDbConnected()) {
+      const loc = memoryLocations.find((l) => l._id === id);
+      if (!loc) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+      }
+
+      const targetZone = loc.zones?.find((z) => z.id === zoneId);
+      if (!targetZone) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy khu vực" });
+      }
+
+      const deletedZoneName = targetZone.name;
+      loc.zones = loc.zones?.filter((z) => z.id !== zoneId);
+
+      // Reassign courts from deleted zone to remaining zone or fallback
+      const fallbackZone = loc.zones?.[0]?.name || "Khu A";
+      if (loc.courts) {
+        loc.courts.forEach((c) => {
+          if (c.zone === deletedZoneName) {
+            c.zone = fallbackZone;
+          }
+        });
+      }
+      loc.updatedAt = new Date();
+
+      return res.json({ success: true, message: `Đã xóa khu vực "${deletedZoneName}"` });
+    }
+
+    const loc = await Location.findById(id);
+    if (!loc) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở" });
+    }
+
+    const targetZone = loc.zones?.find((z: any) => z.id === zoneId);
+    if (!targetZone) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy khu vực" });
+    }
+
+    const deletedZoneName = targetZone.name;
+    loc.zones = loc.zones.filter((z: any) => z.id !== zoneId);
+
+    const fallbackZone = loc.zones?.[0]?.name || "Khu A";
+    if (loc.courts) {
+      loc.courts.forEach((c: any) => {
+        if (c.zone === deletedZoneName) {
+          c.zone = fallbackZone;
+        }
+      });
+    }
+
+    await loc.save();
+
+    return res.json({ success: true, message: `Đã xóa khu vực "${deletedZoneName}"` });
+  } catch (error) {
+    console.error("Delete zone error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi xóa khu vực" });
   }
 }
 

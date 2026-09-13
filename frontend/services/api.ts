@@ -69,7 +69,27 @@ export const api = {
         method: "DELETE",
       }),
 
-    addCourt: (locationId: string, courtData: { name: string; type?: string; regularPrice?: number; peakPrice?: number; position?: string }) =>
+    addZone: (locationId: string, zoneData: { name: string; description?: string }) =>
+      request<{ success: boolean; message: string; zone: any }>(`/api/locations/${locationId}/zones`, {
+        method: "POST",
+        body: JSON.stringify(zoneData),
+      }),
+
+    updateZone: (locationId: string, zoneId: string, zoneData: { name: string; description?: string }) =>
+      request<{ success: boolean; message: string; zone: any }>(`/api/locations/${locationId}/zones/${zoneId}`, {
+        method: "PUT",
+        body: JSON.stringify(zoneData),
+      }),
+
+    deleteZone: (locationId: string, zoneId: string) =>
+      request<{ success: boolean; message: string }>(`/api/locations/${locationId}/zones/${zoneId}`, {
+        method: "DELETE",
+      }),
+
+    addCourt: (
+      locationId: string,
+      courtData: { name: string; type?: string; regularPrice?: number; peakPrice?: number; zone?: string; position?: string }
+    ) =>
       request<{ success: boolean; message: string; court: any }>(`/api/locations/${locationId}/courts`, {
         method: "POST",
         body: JSON.stringify(courtData),
@@ -78,7 +98,15 @@ export const api = {
     updateCourt: (
       locationId: string,
       courtId: string,
-      courtData: { name?: string; type?: string; status?: "active" | "maintenance"; regularPrice?: number; peakPrice?: number; position?: string }
+      courtData: {
+        name?: string;
+        type?: string;
+        status?: "active" | "maintenance";
+        regularPrice?: number;
+        peakPrice?: number;
+        zone?: string;
+        position?: string;
+      }
     ) =>
       request<{ success: boolean; message: string; court: any }>(`/api/locations/${locationId}/courts/${courtId}`, {
         method: "PATCH",

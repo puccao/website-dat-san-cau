@@ -5,6 +5,12 @@ export function isDbConnected(): boolean {
   return mongoose.connection.readyState === 1;
 }
 
+export interface MemoryZone {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface MemoryLocation {
   _id: string;
   name: string;
@@ -18,6 +24,7 @@ export interface MemoryLocation {
   latitude?: number;
   longitude?: number;
   directions?: string;
+  zones?: MemoryZone[];
   courts: {
     id: string;
     name: string;
@@ -25,6 +32,7 @@ export interface MemoryLocation {
     status: "active" | "maintenance";
     regularPrice: number;
     peakPrice: number;
+    zone?: string;
     position?: string;
   }[];
   createdAt: Date;
@@ -85,11 +93,16 @@ export const memoryLocations: MemoryLocation[] = [
     latitude: 21.033785,
     longitude: 105.792518,
     directions: "Cách ngã tư Cầu Giấy - Trần Đăng Ninh 200m, bãi gửi xe máy & ô tô rộng rãi miễn phí tại cổng 2.",
+    zones: [
+      { id: "zone_a", name: "Khu A (Tầng 1)", description: "Mặt thảm Enlio tiêu chuẩn thi đấu, gần lễ tân" },
+      { id: "zone_b", name: "Khu B (Tầng 1)", description: "Không gian thoáng mát cạnh khán đài" },
+      { id: "zone_vip", name: "Khu VIP (Tầng 2)", description: "Thảm Yonex cao cấp có máy lạnh riêng biệt" },
+    ],
     courts: [
-      { id: "court_1", name: "Sân 1 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Tầng 1 (Sân trung tâm)" },
-      { id: "court_2", name: "Sân 2 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu A - Tầng 1 (Cạnh cửa ra vào)" },
-      { id: "court_3", name: "Sân 3 (Thảm Yonex VIP)", type: "VIP", status: "active", regularPrice: 90000, peakPrice: 130000, position: "Khu VIP - Tầng 2 (Có điều hòa & quạt hút)" },
-      { id: "court_4", name: "Sân 4 (Thảm Enlio)", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu B - Tầng 1 (Sân góc yên tĩnh)" },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A (Tầng 1)", position: "Sân số 1 (Gần lối vào)" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A (Tầng 1)", position: "Sân số 2" },
+      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu B (Tầng 1)", position: "Sân số 3" },
+      { id: "court_4", name: "Sân VIP 1", type: "VIP", status: "active", regularPrice: 100000, peakPrice: 150000, zone: "Khu VIP (Tầng 2)", position: "Sân VIP 1" },
     ],
     createdAt: new Date("2025-01-01T08:00:00.000Z"),
     updatedAt: new Date("2025-01-01T08:00:00.000Z"),
@@ -107,11 +120,15 @@ export const memoryLocations: MemoryLocation[] = [
     latitude: 10.851215,
     longitude: 106.771965,
     directions: "Đối diện Đại học Sư Phạm Kỹ Thuật, đi thẳng ngõ 18 vào 50m, nhà thi đấu mái vòm xanh.",
+    zones: [
+      { id: "zone_a", name: "Khu A", description: "Dãy sân tiêu chuẩn gần khán đài chính" },
+      { id: "zone_b", name: "Khu B", description: "Dãy sân cạnh quầy nước giải khát" },
+    ],
     courts: [
-      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy A - Sân số 1 (Gần khán đài)" },
-      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy A - Sân số 2" },
-      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy B - Sân số 3 (Cạnh quầy nước giải khát)" },
-      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Dãy B - Sân số 4" },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A", position: "Sân số 1 (Gần khán đài)" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu A", position: "Sân số 2" },
+      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu B", position: "Sân số 3 (Cạnh quầy nước)" },
+      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu B", position: "Sân số 4" },
     ],
     createdAt: new Date("2025-01-02T08:00:00.000Z"),
     updatedAt: new Date("2025-01-02T08:00:00.000Z"),
@@ -129,11 +146,15 @@ export const memoryLocations: MemoryLocation[] = [
     latitude: 10.801648,
     longitude: 106.649982,
     directions: "Gần ngã tư Hoàng Hoa Thám - Trường Chinh, khu phức hợp thể thao Quân khu, bãi xe ô tô rộng.",
+    zones: [
+      { id: "zone_a", name: "Khu trung tâm", description: "Thảm Yonex xanh lá chuẩn quốc tế" },
+      { id: "zone_vip", name: "Khu khán đài VIP", description: "Bảng điểm LED và ghế đệm" },
+    ],
     courts: [
-      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu trung tâm 1 (Thảm Yonex xanh lá)" },
-      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu trung tâm 2" },
-      { id: "court_3", name: "Sân 3", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu khán đài VIP (Có ghế đệm & bảng điểm LED)" },
-      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, position: "Khu tập luyện cánh phải" },
+      { id: "court_1", name: "Sân 1", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu trung tâm", position: "Sân trung tâm 1" },
+      { id: "court_2", name: "Sân 2", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu trung tâm", position: "Sân trung tâm 2" },
+      { id: "court_3", name: "Sân 3", type: "VIP", status: "active", regularPrice: 100000, peakPrice: 140000, zone: "Khu khán đài VIP", position: "Sân VIP 1" },
+      { id: "court_4", name: "Sân 4", type: "Standard", status: "active", regularPrice: 80000, peakPrice: 120000, zone: "Khu trung tâm", position: "Sân tập luyện" },
     ],
     createdAt: new Date("2025-01-03T08:00:00.000Z"),
     updatedAt: new Date("2025-01-03T08:00:00.000Z"),

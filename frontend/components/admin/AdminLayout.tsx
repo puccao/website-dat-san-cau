@@ -82,7 +82,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     },
     {
       path: "/admin/courts",
-      label: "Quản lý Sân & Bảng giá",
+      label: "Quản lý Cơ sở & Sân đấu",
       icon: MapPin,
     },
     {
